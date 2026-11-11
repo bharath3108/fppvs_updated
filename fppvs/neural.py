@@ -1,12 +1,6 @@
-"""Paper-specified LSTM and CNN actor-critic, with FedAvg."""
+"""Actor-critic networks for updated FPPVS, original FPPVS and the 2022 adaptation, plus FedAvg."""
 import torch
 from torch import nn
-
-
-class DemandLSTM(nn.Module):
-    def __init__(self, features: int, hidden: int = 64):
-        super().__init__(); self.lstm = nn.LSTM(features, hidden, batch_first=True); self.head = nn.Linear(hidden, features)
-    def forward(self, x): return self.head(self.lstm(x)[0][:, -1])
 
 
 class CNNActorCritic(nn.Module):
@@ -41,33 +35,13 @@ class CNNActorCritic(nn.Module):
         return logits, self.critic(features)
 
 
-class PaperCNNActorCritic(nn.Module):
-    """Original FPPVS network as specified in the paper (used as a comparison).
-
-    Three 64-filter 3x3 conv layers with batch norm, global pooling, a 256-unit
-    FC layer with dropout 0.3, then one actor output per DC and one critic
-    output. Global pooling discards which column belongs to which DC.
-    """
-
-    def __init__(self, actions: int):
-        super().__init__(); layers = []; channels = 1
-        for _ in range(3):
-            layers += [nn.Conv2d(channels, 64, 3, padding=1), nn.BatchNorm2d(64), nn.ReLU()]; channels = 64
-        self.encoder = nn.Sequential(*layers, nn.AdaptiveAvgPool2d(1), nn.Flatten(), nn.Linear(64, 256), nn.ReLU(), nn.Dropout(.3))
-        self.actor, self.critic = nn.Linear(256, actions), nn.Linear(256, 1)
-
-    def forward(self, state):
-        x = self.encoder(state); return self.actor(x), self.critic(x)
-
-
 class OriginalCNNActorCritic(nn.Module):
     """Original FPPVS network following the paper's description closely.
 
     Three 3x3 conv layers with 64 filters, batch norm and ReLU, then the
     feature map as a fixed-length vector into a 256-unit FC layer with
     dropout 0.3, then one actor output per DC and one critic output.
-    Unlike ``PaperCNNActorCritic`` there is no global pooling, so each DC
-    keeps its own position in the input.
+    There is no global pooling, so each DC keeps its own position in the input.
     """
 
     def __init__(self, features: int, actions: int):

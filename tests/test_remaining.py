@@ -1,24 +1,32 @@
 import torch
-from fppvs import SFCQueueMemory, SFCRequest, VNF, VNFInstance, VNFInstancePool, VNFKind, jains_fairness
-from fppvs.neural import CNNActorCritic, DemandLSTM, fedavg
+
+from fppvs import SFCQueueMemory, SFCRequest, VNF, VNFKind, jains_fairness
+from fppvs.baselines import model_chooser, place
+from fppvs.environment import ORIGINAL_FEATURES, PAPER_FEATURES, PlacementEnvironment
+from fppvs.neural import CNNActorCritic, MLPActorCritic, OriginalCNNActorCritic, fedavg
 from fppvs.sqn import SQNLSTMPredictor
-from fppvs.training import FederatedTrainingHistory, TrainingHistory
-from fppvs.training import evaluate_policy
-from fppvs.environment import PlacementEnvironment
 from fppvs.substrate import DataCenter, MECNetwork, PhysicalLink
+from fppvs.training import FederatedTrainingHistory, TrainingHistory
 
-def test_sharing_prefers_capacity_then_cost():
-    v = VNF("dpi", VNFKind.SHAPER, compute_demand=2)
-    pool = VNFInstancePool([VNFInstance("a", "dpi", "x", 10, 2), VNFInstance("b", "dpi", "y", 8, 0)])
-    assert pool.choose(v, {"x": 1, "y": 10}).id == "a"
 
-def test_sqn_and_neural_shapes_and_fedavg():
-    memory = SFCQueueMemory(["dpi", "nat"], 5); memory.observe([VNF("dpi", VNFKind.SHAPER, 3)])
-    assert DemandLSTM(2)(memory.tensor()).shape == (1, 2)
-    one, two = CNNActorCritic(4), CNNActorCritic(4)
+def test_sqn_queue_and_network_shapes_and_fedavg():
+    memory = SFCQueueMemory(["dpi", "nat"], 5)
+    memory.observe([VNF("dpi-1", VNFKind.SHAPER, 3)])
+    assert memory.tensor().shape == (1, 1, 2)
+    one, two = CNNActorCritic(), CNNActorCritic()
     logits, value = one(torch.zeros(2, 1, 3, 4))
     assert logits.shape == (2, 4) and value.shape == (2, 1)
-    fedavg([one, two]); assert jains_fairness([1, 1]) == 1
+    fedavg([one, two])
+    assert jains_fairness([1, 1]) == 1
+
+
+def test_original_and_2022_networks_output_one_logit_per_dc():
+    original = OriginalCNNActorCritic(ORIGINAL_FEATURES, 5).eval()
+    logits, value = original(torch.zeros(1, 1, ORIGINAL_FEATURES, 5))
+    assert logits.shape == (1, 5) and value.shape == (1, 1)
+    zhang = MLPActorCritic(PAPER_FEATURES, 5)
+    logits, value = zhang(torch.zeros(1, 1, PAPER_FEATURES, 5))
+    assert logits.shape == (1, 5) and value.shape == (1, 1)
 
 
 def test_sqn_lstm_predictor_keeps_bounded_request_history():
@@ -39,10 +47,22 @@ def test_federated_history_uses_every_local_episode_for_acceptance():
     assert history.acceptance_rate == 0.75
 
 
-def test_policy_evaluation_is_deterministic_on_a_fresh_environment():
-    network = MECNetwork([DataCenter("a", 10), DataCenter("b", 10)], [PhysicalLink("a", "b", 10, 1)])
+def test_learned_policy_choice_is_deterministic():
+    network = MECNetwork([DataCenter("a", 10), DataCenter("b", 10)], [PhysicalLink("a", "b", 10, 100)])
     request = SFCRequest("a", (VNF("dpi-1", VNFKind.SHAPER, 1),), "b", ((0,),), max_latency=20)
-    model = CNNActorCritic(2)
-    first = evaluate_policy(model, [PlacementEnvironment(network, request)])
-    second = evaluate_policy(model, [PlacementEnvironment(network, request)])
-    assert first.accepted == second.accepted
+    chooser = model_chooser(CNNActorCritic())
+    first = place(PlacementEnvironment(network, request), chooser)
+    second = place(PlacementEnvironment(network, request), chooser)
+    assert first.info["accepted"] == second.info["accepted"]
+
+
+def test_original_mode_only_offers_current_or_neighbouring_nodes():
+    # Line a - b - c: from source 'a', the first VNF may go on 'a' or 'b', not 'c'.
+    network = MECNetwork(
+        [DataCenter("a", 10), DataCenter("b", 10), DataCenter("c", 10)],
+        [PhysicalLink("a", "b", 5, 100), PhysicalLink("b", "c", 5, 100)],
+    )
+    request = SFCRequest("a", (VNF("fw-1-0", VNFKind.SHAPER, 1, 0.1),), "c", ((0,),), data_rate=5, max_latency=100)
+    env = PlacementEnvironment(network, request, original_mode=True)
+    assert env.action_mask().tolist() == [True, True, False]
+    assert env.state().shape == (1, 1, ORIGINAL_FEATURES, 3)

@@ -28,8 +28,6 @@ LABELS = {
     "prior-only": "Prior only (no DRL)",
     "original": "Original FPPVS",
     "zhang2022": "2022 adaptation",
-    "shortest+sharing": "Shortest-path + sharing",
-    "shortest": "Shortest-path first-fit",
     "greedy": "Greedy",
     "random": "Random",
 }
@@ -174,7 +172,8 @@ def write_report(summary: dict, main_loads: list[float], cfg: dict, out: Path) -
              "Hold-out acceptance, mean ± std over seeds. Load = offered compute demand ÷ total DC capacity.",
              f"Training: {cfg['agents']} federated agents × {cfg['rounds']} rounds × {cfg['local_episodes']} episodes; "
              f"{cfg['train_requests']} training / {cfg['test_requests']} hold-out requests per stream.", ""]
-    methods = list(next(iter(summary.values()))["methods"])
+    # Skip methods that are no longer part of the comparison (e.g. in older result files).
+    methods = [m for m in next(iter(summary.values()))["methods"] if m in LABELS]
     lines += ["## Acceptance (%)", "", "| Scenario | " + " | ".join(LABELS[m] for m in methods) + " |",
               "|---|" + "---|" * len(methods)]
     for key, item in summary.items():

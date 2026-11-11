@@ -14,7 +14,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from fppvs.baselines import greedy_choice, prior_choice, random_chooser, run_stream, shortest_choice
+from fppvs.baselines import greedy_choice, prior_choice, random_chooser, run_stream
 from fppvs.experiment import build_environments
 from fppvs.workloads import make_synthetic_scenario
 
@@ -23,8 +23,6 @@ def main() -> None:
     seeds = [7, 8, 9, 10, 11]
     methods = {
         "prior-only (FPPVS placement, no DRL)": (prior_choice, True, 4),
-        "shortest+sharing": (shortest_choice, True, 0),
-        "shortest": (shortest_choice, False, 0),
         "greedy": (greedy_choice, False, 0),
         "random": (None, False, 0),
     }

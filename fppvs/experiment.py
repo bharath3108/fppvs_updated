@@ -9,7 +9,7 @@ import torch
 from .admission import ResourceLedger
 from .baselines import (
     Chooser, StreamResult, greedy_choice, model_chooser, prior_choice, random_chooser,
-    run_stream, shortest_choice,
+    run_stream,
 )
 from .environment import ORIGINAL_FEATURES, PAPER_FEATURES, ROW_PRIOR, PlacementEnvironment
 from .neural import CNNActorCritic, MLPActorCritic, OriginalCNNActorCritic
@@ -67,9 +67,8 @@ class ExperimentConfig:
     retries: int = 4
     device: str = "cpu"
     variants: tuple[str, ...] = ("fppvs", "no-sharing", "no-fairness", "single-agent", "no-retry", "prior-only", "original", "zhang2022")
-    # Plain placement heuristics run without VNF sharing, as in the original
-    # repository; "shortest+sharing" is the strongest comparator with sharing.
-    baselines: tuple[str, ...] = ("shortest+sharing", "shortest", "greedy", "random")
+    # Plain placement heuristics run without VNF sharing, as in the original repository.
+    baselines: tuple[str, ...] = ("greedy", "random")
 
 
 def _train_model(network, seed: int, rate: float, cfg: ExperimentConfig, *, sharing: bool, fairness: bool, federated: bool, paper: bool = False, zhang: bool = False):
@@ -149,7 +148,7 @@ def run_scenario(topology: str, load: float, seed: int, cfg: ExperimentConfig) -
             outcome.training_zhang2022 = info
         model.to(device)
         record(name, _evaluate(network, test_requests, model_chooser(model, device), sharing=spec["sharing"], retries=spec["retries"], device=device, paper=spec.get("paper", False), zhang=spec.get("zhang", False)))
-    baseline_choosers = {"shortest+sharing": shortest_choice, "shortest": shortest_choice, "greedy": greedy_choice, "random": random_chooser(seed)}
+    baseline_choosers = {"greedy": greedy_choice, "random": random_chooser(seed)}
     for name in cfg.baselines:
-        record(name, _evaluate(network, test_requests, baseline_choosers[name], sharing=name.endswith("+sharing"), retries=0, device=device))
+        record(name, _evaluate(network, test_requests, baseline_choosers[name], sharing=False, retries=0, device=device))
     return outcome

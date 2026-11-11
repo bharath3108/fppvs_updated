@@ -5,11 +5,12 @@ stream, feasibility mask, sharing model and ledger); only the DC choice
 differs. These are simple stand-ins for the strategy families the paper
 discusses, not re-implementations of RVNF, DRL-SFCP, PVFP or DPC:
 
-* random   - any feasible DC;
-* greedy   - load balancing: most residual compute first;
-* shortest - shortest-path first-fit: nearest feasible DC to the previous
-             VNF (the "shortest-path placement" style the paper attributes
-             to RVNF/DRL-SFCP).
+* random - any feasible DC;
+* greedy - load balancing: most residual compute first.
+
+It also holds the choosers used for the learned policies and the placement
+prior, the rollback-and-retry admission, and the stream runner that collects
+every metric in the report.
 """
 from __future__ import annotations
 
@@ -22,7 +23,6 @@ import torch
 
 from .admission import ResourceLedger
 from .environment import PlacementEnvironment
-from .placement import PlacementReport
 
 Chooser = Callable[[PlacementEnvironment, list[int]], int]
 
@@ -39,14 +39,6 @@ def greedy_choice(environment: PlacementEnvironment, candidates: list[int]) -> i
         residual = (environment.ledger.residual_compute(dc) - environment.reserved[dc]) / environment.network.compute_capacity(dc)
         return (residual, -environment.network.latency(previous, dc))
     return max(candidates, key=key)
-
-
-def shortest_choice(environment: PlacementEnvironment, candidates: list[int]) -> int:
-    previous = _previous_dc(environment)
-    def key(i: int):
-        dc = environment.dcs[i]
-        return (environment.network.latency(previous, dc), -(environment.ledger.residual_compute(dc) - environment.reserved[dc]))
-    return min(candidates, key=key)
 
 
 def prior_choice(environment: PlacementEnvironment, candidates: list[int]) -> int:
@@ -104,16 +96,6 @@ def place_with_retry(environment: PlacementEnvironment, chooser: Chooser, retrie
         if attempt.info.get("accepted"):
             return attempt
     return final
-
-
-def greedy_place(environment: PlacementEnvironment) -> PlacementReport | None:
-    final = place(environment, greedy_choice)
-    return final.info.get("report") if final.info.get("accepted") else None
-
-
-def random_place(environment: PlacementEnvironment, seed: int = 0) -> PlacementReport | None:
-    final = place(environment, random_chooser(seed))
-    return final.info.get("report") if final.info.get("accepted") else None
 
 
 @dataclass

@@ -3,7 +3,6 @@ from __future__ import annotations
 
 from copy import deepcopy
 from dataclasses import asdict, dataclass
-from pathlib import Path
 from random import Random
 
 import torch
@@ -74,7 +73,6 @@ def train(
     learning_rate: float = 5e-4,
     seed: int = 7,
     config: TrainingConfig | None = None,
-    checkpoint: str | Path | None = None,
     start_episode: int = 0,
 ) -> TrainingHistory:
     """Train one local FPPVS actor-critic agent with masked actions.
@@ -150,10 +148,7 @@ def train(
         epsilon = max(config.epsilon_min, epsilon * config.epsilon_decay) if was_accepted else min(config.epsilon_start, epsilon / config.epsilon_decay)
         epsilons.append(epsilon)
 
-    history = TrainingHistory(tuple(rewards), tuple(accepted), tuple(epsilons), str(device))
-    if checkpoint is not None:
-        save_checkpoint(checkpoint, model, config, history)
-    return history
+    return TrainingHistory(tuple(rewards), tuple(accepted), tuple(epsilons), str(device))
 
 
 def train_federated(
@@ -164,7 +159,6 @@ def train_federated(
     local_episodes: int,
     seed: int = 7,
     config: TrainingConfig | None = None,
-    checkpoint: str | Path | None = None,
 ) -> FederatedTrainingHistory:
     """Run local actor-critic training followed by FedAvg in each round."""
     if rounds < 1 or local_episodes < 1 or not agent_environments or any(not group for group in agent_environments):
@@ -186,53 +180,4 @@ def train_federated(
         global_model.load_state_dict(local_models[0].state_dict())
         round_rewards.append(sum(sum(history.episode_rewards) / len(history.episode_rewards) for history in round_histories) / len(round_histories))
         round_acceptance.append(sum(sum(history.accepted) / len(history.accepted) for history in round_histories) / len(round_histories))
-    result = FederatedTrainingHistory(tuple(round_rewards), tuple(round_acceptance), tuple(histories), histories[-1].device)
-    if checkpoint is not None:
-        save_checkpoint(checkpoint, global_model, config, result)
-    return result
-
-
-def evaluate_policy(model: CNNActorCritic, environments: list[PlacementEnvironment], *, device: str = "auto") -> TrainingHistory:
-    """Evaluate a trained policy deterministically on fresh environments.
-
-    Unlike ``train``, this never injects epsilon exploration or logit noise.
-    It is therefore suitable for comparison with deterministic baselines.
-    """
-    if not environments:
-        raise ValueError("at least one placement environment is required")
-    resolved = resolve_device(device)
-    model.to(resolved)
-    model.eval()
-    rewards: list[float] = []
-    accepted: list[bool] = []
-    with torch.no_grad():
-        for environment in environments:
-            state = environment.reset().to(resolved)
-            total_reward = 0.0
-            final = None
-            if not environment.has_action():
-                final = environment.reject("no feasible data center")
-                total_reward = final.reward
-            while not environment.done:
-                logits, _ = model(state)
-                mask = environment.action_mask().to(resolved)
-                action = int(logits.squeeze(0).masked_fill(~mask, float("-inf")).argmax().item())
-                final = environment.step(action)
-                total_reward += final.reward
-                state = final.state.to(resolved)
-            rewards.append(total_reward)
-            accepted.append(bool(final and final.info.get("accepted")))
-    return TrainingHistory(tuple(rewards), tuple(accepted), tuple(0.0 for _ in rewards), str(resolved))
-
-
-def save_checkpoint(path: str | Path, model: CNNActorCritic, config: TrainingConfig, history: TrainingHistory | FederatedTrainingHistory) -> Path:
-    path = Path(path)
-    path.parent.mkdir(parents=True, exist_ok=True)
-    torch.save({"model_state": model.state_dict(), "config": asdict(config), "history": asdict(history)}, path)
-    return path
-
-
-def load_checkpoint(path: str | Path, model: CNNActorCritic, *, device: str = "auto") -> dict[str, object]:
-    payload = torch.load(Path(path), map_location=resolve_device(device), weights_only=False)
-    model.load_state_dict(payload["model_state"])
-    return payload
+    return FederatedTrainingHistory(tuple(round_rewards), tuple(round_acceptance), tuple(histories), histories[-1].device)

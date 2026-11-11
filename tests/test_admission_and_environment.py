@@ -3,7 +3,7 @@ import torch
 
 from fppvs import DataCenter, MECNetwork, PhysicalLink, SFCRequest, VNF, VNFKind
 from fppvs.admission import Admission, ResourceLedger
-from fppvs.baselines import place, prior_choice, run_stream, shortest_choice
+from fppvs.baselines import greedy_choice, place, prior_choice, run_stream
 from fppvs.environment import FEATURES, ROW_PRIOR, PlacementEnvironment
 from fppvs.experiment import arrival_rate_for_load
 from fppvs.neural import CNNActorCritic, fedavg
@@ -74,7 +74,7 @@ def test_mask_prunes_data_centers_without_bandwidth():
     ledger.commit(Admission({}, {("a", "b"): 10.0}), expires_at=100)
     env = PlacementEnvironment(network, chain(1, source="a", destination="b", rate=5), ledger=ledger)
     assert env.action_mask().tolist() == [True, False, False]
-    final = place(env, shortest_choice)
+    final = place(env, greedy_choice)
     assert final.info["accepted"] is False
     assert not ledger.reservations[1:]  # nothing new committed
 

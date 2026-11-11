@@ -19,7 +19,7 @@ from .metrics import jains_fairness
 from .models import SFCRequest, VNFKind
 from .parallelization import parallelize_sfc
 from .placement import evaluate_placement
-from .sharing import VNFInstancePool, vnf_type
+from .sharing import vnf_type
 from .sqn import SQNPrediction
 from .substrate import MECNetwork
 
@@ -64,7 +64,6 @@ class PlacementEnvironment:
         request: SFCRequest,
         *,
         sharing: bool | None = None,
-        pool: VNFInstancePool | None = None,
         fairness_throughputs: list[float] | None = None,
         sqn_prediction: SQNPrediction | None = None,
         ledger: ResourceLedger | None = None,
@@ -110,7 +109,7 @@ class PlacementEnvironment:
             lookahead = False
         self.p_sfc = parallelize_sfc(request)
         self.dcs = network.data_centers
-        # ``pool`` is kept only for backward compatibility; sharing defaults on.
+        # Sharing is on unless explicitly turned off.
         self.sharing = True if sharing is None else sharing
         self.fairness_throughputs = fairness_throughputs
         self.sqn_prediction = sqn_prediction
