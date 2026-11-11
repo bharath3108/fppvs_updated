@@ -1,0 +1,120 @@
+{
+  "scenario": "synthetic; not exact paper datasets",
+  "modules": {
+    "parallelization": true,
+    "sqn_lstm": true,
+    "sharing": true,
+    "fairness": true,
+    "federated": true
+  },
+  "device": "cpu",
+  "seed": 7,
+  "runs": 5,
+  "requests": 100,
+  "training": {
+    "agents": 4,
+    "rounds": 50,
+    "local_episodes": 10,
+    "episodes": null
+  },
+  "statistics": {
+    "fdrl_acceptance": {
+      "mean": 0.10400000000000001,
+      "std": 0.05128352561983235,
+      "ci95_half_width": 0.04495199216942449
+    },
+    "greedy_acceptance": {
+      "mean": 0.158,
+      "std": 0.031144823004794868,
+      "ci95_half_width": 0.027299641023280866
+    },
+    "random_acceptance": {
+      "mean": 0.116,
+      "std": 0.030495901363953814,
+      "ci95_half_width": 0.026730836126092276
+    },
+    "mean_reward": {
+      "mean": 14.210634898705882,
+      "std": 4.351647780523424,
+      "ci95_half_width": 3.814387458543493
+    },
+    "training_acceptance": {
+      "mean": 0.2604,
+      "std": 0.050786809311079976,
+      "ci95_half_width": 0.04451660112811848
+    },
+    "mean_training_reward": {
+      "mean": 15.2826524125869,
+      "std": 0.6410964314960518,
+      "ci95_half_width": 0.5619457987754218
+    },
+    "fdrl_training_episodes": {
+      "mean": 2000,
+      "std": 0.0,
+      "ci95_half_width": 0.0
+    },
+    "sqn_queue_depth": {
+      "mean": 5,
+      "std": 0.0,
+      "ci95_half_width": 0.0
+    }
+  },
+  "per_run": [
+    {
+      "seed": 7,
+      "fdrl_acceptance": 0.08,
+      "greedy_acceptance": 0.13,
+      "random_acceptance": 0.14,
+      "mean_reward": 9.267930478115998,
+      "training_acceptance": 0.185,
+      "mean_training_reward": 16.120672445055217,
+      "fdrl_training_episodes": 2000,
+      "sqn_queue_depth": 5
+    },
+    {
+      "seed": 8,
+      "fdrl_acceptance": 0.09,
+      "greedy_acceptance": 0.14,
+      "random_acceptance": 0.14,
+      "mean_reward": 11.789159578862382,
+      "training_acceptance": 0.2515,
+      "mean_training_reward": 14.590475986638108,
+      "fdrl_training_episodes": 2000,
+      "sqn_queue_depth": 5
+    },
+    {
+      "seed": 9,
+      "fdrl_acceptance": 0.04,
+      "greedy_acceptance": 0.16,
+      "random_acceptance": 0.1,
+      "mean_reward": 16.237119578470267,
+      "training_acceptance": 0.2565,
+      "mean_training_reward": 15.543836103358062,
+      "fdrl_training_episodes": 2000,
+      "sqn_queue_depth": 5
+    },
+    {
+      "seed": 10,
+      "fdrl_acceptance": 0.14,
+      "greedy_acceptance": 0.21,
+      "random_acceptance": 0.07,
+      "mean_reward": 13.198358315991289,
+      "training_acceptance": 0.2865,
+      "mean_training_reward": 15.473841327751144,
+      "fdrl_training_episodes": 2000,
+      "sqn_queue_depth": 5
+    },
+    {
+      "seed": 11,
+      "fdrl_acceptance": 0.17,
+      "greedy_acceptance": 0.15,
+      "random_acceptance": 0.13,
+      "mean_reward": 20.560606542089474,
+      "training_acceptance": 0.3225,
+      "mean_training_reward": 14.684436200131973,
+      "fdrl_training_episodes": 2000,
+      "sqn_queue_depth": 5
+    }
+  ],
+  "learning_plot": "output\\fppvs-final-corrected.png"
+}

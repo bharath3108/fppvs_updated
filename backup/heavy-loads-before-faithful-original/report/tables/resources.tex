@@ -1,0 +1,42 @@
+\begin{tabular}{llcccccc}
+\toprule
+Scenario & Method & Compute & Bandwidth & Compute$\cdot$time & BW$\cdot$time & Instances & Latency \\
+ & & per SFC & per SFC & per acc. ($10^3$) & per acc. ($10^3$) & per acc. & (ms) \\
+\midrule
+Backbone 0.9 & Updated (ours) & 5.42 & \textbf{53.8} & 5.43 & \textbf{54.0} & \textbf{0.57} & \textbf{46.5} \\
+ & Original FPPVS & \textbf{5.14} & 71.2 & \textbf{5.08} & 70.5 & 0.59 & 65.6 \\
+ & 2022 adaptation & 5.23 & 58.4 & 5.37 & 60.0 & 0.59 & 66.2 \\
+ & Greedy & 6.29 & 109.6 & 6.31 & 109.8 & 6.66 & 107.8 \\
+ & Random & 6.22 & 110.7 & 6.40 & 114.0 & 6.57 & 108.8 \\
+\midrule
+Backbone 1 & Updated (ours) & 5.39 & \textbf{56.2} & 5.42 & \textbf{56.5} & \textbf{0.53} & \textbf{50.0} \\
+ & Original FPPVS & \textbf{5.16} & 70.2 & \textbf{5.20} & 70.8 & 0.59 & 64.2 \\
+ & 2022 adaptation & 5.19 & 56.5 & 5.28 & 57.4 & 0.61 & 67.2 \\
+ & Greedy & 6.19 & 111.2 & 6.40 & 115.1 & 6.58 & 107.7 \\
+ & Random & 6.24 & 109.4 & 6.27 & 110.1 & 6.58 & 108.1 \\
+\midrule
+Backbone 1.1 & Updated (ours) & 5.39 & 59.6 & 5.40 & 59.9 & \textbf{0.52} & \textbf{53.2} \\
+ & Original FPPVS & 5.16 & 66.9 & \textbf{5.17} & 67.1 & 0.63 & 63.6 \\
+ & 2022 adaptation & \textbf{5.15} & \textbf{57.0} & 5.26 & \textbf{58.2} & 0.63 & 70.2 \\
+ & Greedy & 6.21 & 109.9 & 6.30 & 111.5 & 6.59 & 107.4 \\
+ & Random & 6.23 & 106.7 & 6.24 & 107.0 & 6.56 & 108.8 \\
+\midrule
+Metro 0.9 & Updated (ours) & 5.38 & \textbf{51.1} & 5.50 & \textbf{52.3} & \textbf{0.55} & \textbf{45.8} \\
+ & Original FPPVS & 5.24 & 65.5 & 5.42 & 67.8 & 0.64 & 62.0 \\
+ & 2022 adaptation & \textbf{5.17} & 51.8 & \textbf{5.28} & 53.1 & 0.67 & 65.5 \\
+ & Greedy & 6.15 & 102.2 & 6.27 & 104.6 & 6.56 & 105.2 \\
+ & Random & 6.13 & 102.2 & 6.22 & 103.9 & 6.47 & 105.9 \\
+\midrule
+Metro 1 & Updated (ours) & 5.35 & \textbf{51.6} & 5.44 & \textbf{52.5} & \textbf{0.55} & \textbf{48.6} \\
+ & Original FPPVS & 5.21 & 64.3 & \textbf{5.28} & 65.4 & 0.67 & 62.2 \\
+ & 2022 adaptation & \textbf{5.11} & 52.0 & 5.35 & 54.4 & 0.62 & 67.2 \\
+ & Greedy & 6.15 & 99.4 & 6.46 & 104.4 & 6.53 & 104.1 \\
+ & Random & 6.16 & 101.9 & 6.38 & 105.6 & 6.51 & 105.2 \\
+\midrule
+Metro 1.1 & Updated (ours) & 5.33 & 52.6 & 5.43 & 53.6 & \textbf{0.51} & \textbf{50.2} \\
+ & Original FPPVS & \textbf{5.13} & 64.1 & \textbf{5.12} & 64.0 & 0.62 & 62.4 \\
+ & 2022 adaptation & 5.14 & \textbf{51.2} & 5.32 & \textbf{53.0} & 0.63 & 65.2 \\
+ & Greedy & 6.12 & 100.5 & 6.34 & 104.1 & 6.52 & 105.0 \\
+ & Random & 6.03 & 97.6 & 6.14 & 99.4 & 6.41 & 104.0 \\
+\bottomrule
+\end{tabular}

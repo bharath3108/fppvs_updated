@@ -1,0 +1,615 @@
+\documentclass[11pt,a4paper]{article}
+
+\usepackage[margin=2.2cm]{geometry}
+\usepackage[T1]{fontenc}
+\usepackage{lmodern}
+\usepackage{amsmath,amssymb}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{tabularx}
+\usepackage{array}
+\usepackage{float}
+\usepackage{needspace}
+\usepackage{caption}
+\usepackage{enumitem}
+\usepackage{xcolor}
+\usepackage{algorithm}
+\usepackage{algpseudocode}
+\usepackage[hidelinks]{hyperref}
+
+\graphicspath{{figures/}}
+\setlist{itemsep=2pt,topsep=4pt}
+\captionsetup{font=small,labelfont=bf}
+\newcommand{\ours}[1]{\textcolor[HTML]{1B7F5A}{#1}}
+
+\input{tables/macros}
+
+\title{\textbf{Fairness-aware and Parallelized SFC Placement with VNF Sharing:\\
+Implementation, Limitations and Modifications}\\[4pt]
+\large Advanced Computer Networks -- Project Report}
+\author{23CSB0B03 \quad 23CSB0B17 \quad 23CSB0B23 \quad 23CSB0B56}
+\date{}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+We studied FPPVS, a framework by Zhu, Li and Rezaeipanah~\cite{fppvs} that places
+service function chains (SFCs) in MEC-enabled IoT networks using SFC
+parallelization, VNF sharing, fairness-aware allocation and federated deep
+reinforcement learning (FDRL). We built a full Python implementation of it. Our
+first version accepted only about 10\% of requests, worse than a random
+placement. We traced this to several gaps in the problem as it was specified
+and in our implementation, and then changed the formulation and the algorithm:
+Poisson arrivals at a stated offered load, a placement mask that checks compute,
+bandwidth and latency before a data center is chosen, a per-data-center actor
+network with a placement prior, honest accounting for shared VNF instances,
+rollback-and-retry admission, and corrected federated training. On synthetic
+Backbone (24 nodes) and Metro (17 nodes) topologies at three load levels, the
+updated FPPVS accepts between \fppvsMinAcc\% and \fppvsMaxAcc\% of requests on
+a hold-out stream (mean of \numSeeds{} seeds), and it holds less bandwidth per
+running SFC than every other method. Under the same conditions, the original
+FPPVS as specified in the paper accepts \origMinAcc--\origMaxAcc\%, a 2022
+SFC-placement method by Zhang et al.\ accepts \zhangMinAcc--\zhangMaxAcc\%, and
+greedy and random placement stay between 52\% and 73\%.
+\end{abstract}
+
+\noindent\textbf{How to read this report.} Material that describes the original
+paper is written as ``the paper'' or ``the original work''. Everything our team
+designed, changed or measured is marked as ours and is summarised in
+Table~\ref{tab:contrib}.
+
+%=====================================================================
+\section{Introduction}
+%=====================================================================
+
+\subsection{Problem addressed}
+Network Function Virtualization (NFV) replaces dedicated middleboxes, such as
+firewalls (FW), intrusion detection (IDS), deep packet inspection (DPI), load
+balancers (LB) and NAT, with software Virtual Network Functions (VNFs). A
+network service is an ordered list of VNFs called a Service Function Chain
+(SFC). In a Mobile Edge Computing (MEC) network the VNFs run on small edge data
+centers (DCs) that have limited compute, and the DCs are connected by links with
+limited bandwidth and non-zero latency. The \emph{SFC placement problem} asks,
+for every arriving request, on which DC each VNF should run and how traffic
+should be routed between them, so that capacity, bandwidth and the request's
+latency limit are respected. The problem is NP-hard and has to be solved online,
+because requests arrive one after another and leave after their lifetime.
+
+\subsection{Motivation}
+Two effects make the problem harder in IoT/MEC settings. First, end-to-end
+latency grows with chain length when every packet passes through every VNF in
+sequence. Second, many requests compete for the same small edge DCs, so a
+placement policy that only looks at the current request can starve later ones.
+Existing methods tend to address only one of these at a time: network function
+parallelism reduces latency, while VNF reuse reduces resource use. Fairness
+between competing flows is usually ignored.
+
+\subsection{Main contributions of the original paper}
+The paper~\cite{fppvs} proposes FPPVS, which combines four ideas:
+\begin{enumerate}
+  \item \textbf{SFC parallelization (Algorithm 1).} VNFs are split into
+  \emph{shapers}, which modify packets and must stay in order, and
+  \emph{monitors}, which only read packets. Monitors are moved onto branches
+  that run in parallel with the main chain, and a dependency matrix says where
+  each branch must rejoin. The sequential SFC (s-SFC) becomes a directed acyclic
+  graph (p-SFC), and latency is measured on its critical path.
+  \item \textbf{VNF sharing with demand prediction.} Before creating a new VNF
+  instance, the method tries to reuse a compatible live instance. A bounded
+  SFC queue network (SQN) and an LSTM forecast upcoming demand per VNF type.
+  \item \textbf{Fairness-aware allocation.} A concave $\alpha$-fair utility over
+  flow throughput is part of the objective, so a few heavy flows cannot take all
+  the resources. Jain's fairness index (JFI) is reported.
+  \item \textbf{Federated actor-critic learning.} Local agents with a CNN
+  actor-critic place VNFs, and a cloud server combines their models with
+  federated averaging (FedAvg)~\cite{fedavg}. Exploration uses a reward-driven
+  adaptive $\epsilon$-greedy rule.
+\end{enumerate}
+The paper reports 88.1\% service acceptance on a backbone topology and 75.9\% on
+a metropolitan topology, ahead of four baselines (RVNF, DRL-SFCP, PVFP and DPC).
+
+%=====================================================================
+\section{Limitations of the Original Work}
+%=====================================================================
+
+We list the limitations we found while implementing the paper. Some are gaps in
+what the paper specifies, so it cannot be reproduced exactly. Others are design
+problems that showed up once the method ran. Table~\ref{tab:limits} states which
+ones our project addresses.
+
+\begin{enumerate}[label=\textbf{L\arabic*.}]
+  \item \textbf{The workload is under-specified.} The paper fixes a mean
+  service lifetime of 1000 time units and 4000 requests, but it does not give
+  the arrival rate. The arrival rate decides how many SFCs are active at the
+  same time, and so it decides the acceptance ratio. When we used one arrival
+  per time unit, about 1000 SFCs would have to be active at once, while a
+  24-node network with 10--20 compute units per DC can only hold about 70--100.
+  \item \textbf{Datasets and code are not available.} The USAnet and Italian
+  operator topologies, the traffic traces, the MATLAB code and the baseline
+  configurations are not published. Results can only be compared in spirit.
+  \item \textbf{Feasibility is checked too late.} The paper prunes nodes that
+  lack compute, but bandwidth and the latency limit are checked only after the
+  whole chain is placed. An agent can therefore spend a full episode building a
+  placement that is rejected at the last step.
+  \item \textbf{The sharing model can overbook capacity.} The paper does not say
+  how much capacity a shared instance reserves or when it is released. A natural
+  reading, which our first version followed (instances sized at three times the
+  demand, only one times reserved), lets the pool use capacity that the DC does
+  not have.
+  \item \textbf{The CNN cannot tell data centers apart.} The paper's actor is a
+  CNN over a feature grid followed by fully connected layers, with one output per
+  DC. After global pooling, the network no longer knows which column belongs to
+  which DC, so it can only learn fixed DC preferences.
+  \item \textbf{Each episode is one request.} The reward only sees the current
+  request. Effects on later requests, such as fragmentation or a saturated link,
+  reach the agent only indirectly.
+  \item \textbf{Resource efficiency is reported only as utilization.} Higher
+  utilization can mean better packing, but it can also mean more waste per
+  request. The paper does not report resources held per served SFC over time.
+\end{enumerate}
+
+\begin{table}[H]
+\centering\small
+\caption{Limitations and how our project treats them.}
+\label{tab:limits}
+\begin{tabularx}{\linewidth}{l X l}
+\toprule
+ & Our treatment & Status \\
+\midrule
+L1 & Poisson arrivals whose rate is set from an explicit offered load $\rho$ & \ours{Addressed} \\
+L2 & Synthetic graphs of the same size; simple, documented baselines & Partly (data still missing) \\
+L3 & Look-ahead mask on compute, every routed link and the latency bound & \ours{Addressed} \\
+L4 & Per-instance overhead model, all usage counted against physical capacity & \ours{Addressed} \\
+L5 & Per-column actor with shared weights plus a learnable placement prior & \ours{Addressed} \\
+L6 & Placement prior with future-hop term; rollback-and-retry admission & Partly \\
+L7 & New metrics: resources held per running SFC and resource-time per accepted SFC & \ours{Addressed} \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\paragraph{Problems in our first implementation.} Before the modifications, our
+implementation of the paper had its own bugs. The package did not import (a
+queue-memory class had been deleted), training crashed when every action was
+masked, federated agents replayed the same ten requests in every round and
+shared one resource ledger, and the state ignored resources held by earlier
+requests. With these bugs and limitations L1--L5, it accepted
+10.4\% of requests, less than greedy (15.8\%) and random (11.6\%) placement. A
+diagnosis run showed that every rejection was due to link bandwidth running out.
+
+%=====================================================================
+\section{System Model and Architecture}
+%=====================================================================
+
+\subsection{Substrate network}
+The MEC network is an undirected graph $G_s=(V_s,E_s)$. Each DC
+$v_i\in V_s$ has compute capacity $C_i$. Each link $(v_i,v_j)\in E_s$ has
+latency $L_{ij}$ and bandwidth capacity $B_{ij}$. Traffic between two DCs follows
+the latency-shortest path $P(v_i,v_j)$. Two VNFs on the same DC exchange traffic
+at no bandwidth or network latency cost. We use two topologies with the sizes
+used in the paper: \emph{Backbone} (24 DCs, 47 links, like USAnet) and
+\emph{Metro} (17 DCs, 29 links, like the Italian access network).
+
+\subsection{Requests supported}
+A request $u$ is the tuple
+$(s_u, \mathcal{F}_u, d_u, D_u, t_u, \tau_u, r_u, L^{\max}_u)$: source DC,
+ordered VNF list, destination DC, dependency matrix, arrival time, lifetime
+(TTL), data rate and maximum end-to-end latency. Each VNF $f\in\mathcal{F}_u$
+has a type, a kind (shaper or monitor), a compute demand $c_f$ and a processing
+latency $\ell_f$. The implementation supports:
+\begin{itemize}
+  \item \textbf{Five VNF types}: IDS, DPI, LB, FW and NAT. IDS and DPI can act
+  as monitors; the others are shapers.
+  \item \textbf{Purely sequential chains} (only shapers), \textbf{purely
+  parallel chains} (only monitors, all branching from the source), and
+  \textbf{mixed chains} in which a monitor must finish before a later shaper.
+  \item \textbf{Chains of 4 to 10 VNFs} with heterogeneous compute demand and a
+  heavy-tailed (power-law) data rate.
+\end{itemize}
+
+For each request the system outputs: an accept/reject decision; if accepted, the
+DC for every VNF, the substrate route of every virtual link, the latency split
+into network, virtualization and processing parts on the critical path, the
+compute and bandwidth reserved, and which VNF instances were reused or started.
+If rejected, it outputs the reason (for example, no DC fits the next VNF).
+
+\subsection{Architecture}
+Figure~\ref{fig:arch} shows the components. Blue blocks follow the paper
+directly, orange blocks are paper ideas that we re-implemented, and green blocks
+are new or changed by our team.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\linewidth]{architecture.png}
+\caption{System architecture. A request is converted to a p-SFC, its VNFs are
+placed one at a time by a local agent under a feasibility mask, and the
+admission check commits or rejects the whole chain against the resource ledger.
+Agents share model weights through FedAvg, never raw request data.}
+\label{fig:arch}
+\end{figure}
+
+\begin{itemize}
+  \item \textbf{Algorithm 1 (s-SFC to p-SFC).} Figure~\ref{fig:psfc} shows the
+  output of our implementation for a five-VNF chain. FW, NAT and LB stay on the
+  main chain. IDS branches off after FW and must rejoin before NAT because the
+  dependency matrix says so. DPI has no dependent shaper, so it rejoins at the
+  destination.
+  \item \textbf{State builder and SQN-LSTM.} Builds a grid with one column per DC
+  and nine feature rows (Section~\ref{sec:approach}). The SQN keeps the per-type
+  demand of the last five requests, and the LSTM predicts the next one.
+  \item \textbf{Feasibility mask, policy and admission} are described in
+  Section~\ref{sec:approach}.
+  \item \textbf{Resource ledger.} Holds the compute, link bandwidth and live
+  shared instances of all active SFCs, releases them when a TTL expires, and
+  integrates resource use over time for the metrics.
+  \item \textbf{Federated learning.} Four local agents, each with its own request
+  stream and ledger, train locally; the cloud averages their weights.
+\end{itemize}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.9\linewidth]{psfc-example.png}
+\caption{Algorithm 1 as implemented. Top: requested sequential chain.
+Bottom: generated p-SFC. IDS must finish before NAT; DPI has no dependent
+shaper and rejoins at the destination.}
+\label{fig:psfc}
+\end{figure}
+
+%=====================================================================
+\section{Modified Problem Formulation}
+%=====================================================================
+
+\subsection{Original formulation (paper)}
+The paper minimizes a weighted sum over time,
+\begin{equation}
+F_{obj} = \min \sum_{t} \xi_{cost} O_{cost}(t) + \xi_{E2E} O_{E2E}(t)
+ - \xi_{acc} O_{acc}(t) - \xi_{utility} O_{utility}(t),
+\end{equation}
+where $O_{acc}=\frac{1}{|U|}\sum_u y_u$ is the acceptance ratio ($y_u=1$ if
+request $u$ is accepted), $O_{cost}$ is deployment cost, $O_{E2E}$ is end-to-end
+latency and $O_{utility}$ is the $\alpha$-fair throughput utility. Constraints
+cover DC capacity, link bandwidth, latency, placement uniqueness and VNF
+dependencies.
+
+\subsection{Our modifications}
+
+\paragraph{M1. Explicit offered load (L1).} Requests arrive as a Poisson process
+with rate $\lambda$, and lifetimes are exponential with mean $\bar\tau=1000$. We
+set $\lambda$ from a target offered load
+\begin{equation}
+\rho = \frac{\lambda\,\bar\tau\,\bar c}{\sum_{i} C_i},
+\qquad \bar c = 7\times 0.7 = 4.9,
+\end{equation}
+where $\bar c$ is the mean compute demand of one SFC (4--10 VNFs of
+0.5--0.9 units each). $\rho=1$ means the average offered compute equals the
+total compute of the network. We evaluate $\rho\in\{0.5, 0.75, 1.0\}$ and use
+$\rho\in\{1.25, 1.5\}$ as overload stress tests.
+
+\paragraph{M2. Instance-based compute model (L4).} Each live VNF instance costs a
+fixed overhead $o$ (its VM or container footprint, $o=0.25$) plus the demand of
+every flow it serves. Let $\mathcal{A}(t)$ be the set of active requests and
+$\mathcal{I}_i(t)$ the set of live instances on DC $v_i$. The compute
+constraint is
+\begin{equation}
+\sum_{u\in\mathcal{A}(t)} \sum_{f\in\mathcal{F}_u} c_f\, x^u_{f,i}
+\;+\; o\,|\mathcal{I}_i(t)| \;\le\; C_i \qquad \forall v_i, t,
+\end{equation}
+where $x^u_{f,i}=1$ if VNF $f$ of request $u$ runs on $v_i$. With sharing, an
+instance of type $k$ on $v_i$ is created by the first VNF of that type and
+removed when its last user leaves. Without sharing, every VNF has its own
+instance.
+
+\paragraph{M3. Bandwidth and latency on the p-SFC.} For every virtual edge
+$(a,b)$ of the p-SFC, the data rate $r_u$ is reserved on each link of
+$P(\pi(a),\pi(b))$, where $\pi$ is the placement:
+\begin{equation}
+\sum_{u\in\mathcal{A}(t)} \sum_{(a,b)\in E_u} r_u\,
+\mathbb{1}\big[(v_i,v_j)\in P(\pi(a),\pi(b))\big] \le B_{ij}.
+\end{equation}
+The latency of a request is the longest source-to-destination path in the
+p-SFC, counting link latency and VNF processing:
+$L_u = \max_{p} \sum_{(a,b)\in p} \big(L_{P(\pi(a),\pi(b))} + \ell_b\big)
+\le L^{\max}_u$.
+
+\paragraph{M4. Objective.} The main objective stays the same as the paper:
+maximize $O_{acc}$. As a second objective we minimize the resources held per
+served request over time (L7):
+\begin{equation}
+R_{comp} = \frac{\int_t \sum_i \mathrm{used}_i(t)\,dt}{\#\text{accepted}},
+\qquad
+R_{bw} = \frac{\int_t \sum_{(i,j)} \mathrm{used}_{ij}(t)\,dt}{\#\text{accepted}}.
+\end{equation}
+Latency and fairness enter through the reward (Section~\ref{sec:reward}), as in
+the paper. We do not model monetary cost separately, because with a fixed price
+per unit it is proportional to $R_{comp}$.
+
+%=====================================================================
+\section{Proposed Approach}\label{sec:approach}
+%=====================================================================
+
+\subsection{Overview}
+Each request is one episode. Its VNFs are placed one at a time in their original
+order, which is also a topological order of the p-SFC. When VNF $f$ is placed on
+a candidate DC, every virtual edge that enters $f$ (and its edge to the
+destination, if it has one) can already be routed. This is what makes an early
+feasibility check possible. Figure~\ref{fig:flow} and Algorithm~\ref{alg:place}
+show one decision.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.95\linewidth]{placement-flow.png}
+\caption{One placement decision in the updated FPPVS.}
+\label{fig:flow}
+\end{figure}
+
+\begin{algorithm}[H]
+\caption{Updated FPPVS admission for one request $u$}\label{alg:place}
+\begin{algorithmic}[1]
+\Require request $u$, ledger $\mathcal{L}$, policy $\pi_\theta$, retries $K$
+\State $G_u \gets$ \Call{Parallelize}{$u$} \Comment{Algorithm 1 of the paper}
+\For{attempt $= 0,\dots,K$}
+  \State reset episode state (nothing is committed yet)
+  \For{each VNF $f$ of $u$ in order}
+    \For{each DC $v$}
+      \State route the edges of $G_u$ completed by putting $f$ on $v$
+      \State $m_v \gets$ compute, bandwidth and latency bound all hold
+    \EndFor
+    \If{no $m_v$ is true} \State \textbf{break} \Comment{dead end, try next attempt} \EndIf
+    \If{$f$ is the first VNF and attempt $>0$}
+      \State $v^\ast \gets$ the attempt-th best DC by prior score, excluding the policy's choice
+    \Else
+      \State $v^\ast \gets \arg\max_{v:\,m_v} \big(\text{logit}_\theta(s)_v + w\cdot \text{prior}_v\big)$
+    \EndIf
+    \State place $f$ on $v^\ast$; reuse a live instance of its type on $v^\ast$ if sharing is on
+  \EndFor
+  \If{all VNFs placed \textbf{and} \Call{Evaluate}{$G_u$} feasible \textbf{and} fits $\mathcal{L}$}
+    \State commit to $\mathcal{L}$ until $t_u+\tau_u$; \Return accept
+  \EndIf
+\EndFor
+\State \Return reject
+\end{algorithmic}
+\end{algorithm}
+
+\subsection{MDP: state, action and mask}
+\textbf{State.} A $9\times|V_s|$ grid, one column per DC (Table~\ref{tab:state}).
+
+\begin{table}[H]
+\centering\small
+\caption{State features per DC column. Rows marked ``ours'' were added by us.}
+\label{tab:state}
+\begin{tabular}{clc}
+\toprule
+Row & Feature & Origin \\
+\midrule
+1 & Residual compute fraction (includes all active SFCs) & paper, fixed by us \\
+2 & Demand of the current VNF / capacity & paper \\
+3 & Latency from the DC of the previous VNF & paper \\
+4 & Latency to the destination & \ours{ours} \\
+5 & Smallest remaining bandwidth fraction on newly routed links & \ours{ours} \\
+6 & A live instance of this VNF type exists (reuse possible) & \ours{ours} \\
+7 & SQN-LSTM demand forecast for this VNF type & paper \\
+8 & Placement prior score & \ours{ours} \\
+9 & Feasibility mask & \ours{ours} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\textbf{Action.} Choose one DC for the current VNF. \textbf{Mask.} A DC is
+allowed only if (i) its residual compute covers the VNF demand plus instance
+overhead when a new instance is needed, (ii) every link on the newly routed
+paths still has the data rate free, and (iii) the critical-path latency so far
+plus the shortest latency from the DC to the destination is within $L^{\max}_u$.
+Because shortest-path latency obeys the triangle inequality, (iii) never removes
+a DC that could still lead to a valid placement.
+
+\subsection{Placement prior}
+The prior score of DC $v$ for VNF $f$ is
+\begin{equation}
+\begin{split}
+\text{prior}_v ={}& -(h^{new}_v + h^{dst}_v) - 2\,\frac{T_v + L(v,d_u)}{L^{\max}_u}
+ + 0.5\,\mathbf{1}[\text{reuse}] \\
+ & + 0.3\,\mathbf{1}[v = v_{prev}] + 0.5\,\tilde{C}_v - 3\,\frac{\max(0,\,0.25-\beta_v)}{0.25},
+\end{split}
+\end{equation}
+where $h^{new}_v$ is the number of link hops (weighted by data rate) the new
+edges use, $h^{dst}_v$ the hops from $v$ to the destination, $T_v$ the
+critical-path finish time of $f$ on $v$, $\tilde C_v$ the residual compute
+fraction after placement and $\beta_v$ the bandwidth margin. In words: keep the
+chain short and on few DCs, reuse live instances, avoid nearly full DCs and
+links.
+
+\subsection{Actor-critic network}
+The paper's three convolutional layers with 64 filters, batch normalization and
+ReLU are kept, but the kernels are $3\times1$, running along the feature axis
+only, because neighbouring columns are unrelated DCs. The \textbf{actor} applies
+the same two $1\times1$ convolutions to every column, averages over the feature
+axis and outputs one logit per DC; we add $w\cdot\text{prior}$, where $w$ is a
+learnable scalar (initial value 2). The network therefore learns a correction on
+top of a sensible rule, and it is permutation-equivariant: reordering the DCs
+reorders the outputs in the same way (this is checked by a unit test). The
+\textbf{critic} keeps the paper's design: global pooling, a 256-unit fully
+connected layer, dropout 0.3 and one output.
+
+\subsection{Reward}\label{sec:reward}
+Following Eq.~(28) of the paper: $+1$ for each valid placement, $-1$ when a new
+instance must be started, and $-10$ if the request is rejected. We added a small
+bandwidth term ($-0.2$ per data-rate-weighted hop) and dropped the paper's $+5$
+reuse bonus, because the prior already rewards reuse. When the request is
+accepted, the agent gets $5\,(1 + \max(0,1 - L_u/L^{\max}_u))$, which rewards
+latency slack, plus a fairness bonus $5\,\Delta\mathrm{JFI}$ (the change in
+Jain's index~\cite{jain} over the throughputs of accepted requests).
+
+\subsection{Training}
+Each episode is trained with advantage actor-critic~\cite{a3c}: discounted
+returns, advantage = return $-$ critic value, actor loss with an entropy bonus,
+critic MSE loss, and gradient clipping. Exploration combines the paper's
+adaptive $\epsilon$-greedy rule ($\epsilon$ shrinks after an accepted request
+and grows after a rejection) with small Gaussian noise on the logits. Four
+agents train locally for 50 episodes per round on their own request streams and
+ledgers, continuing through the stream from round to round; the server then
+averages their weights, weighted by the number of episodes. Evaluation is
+deterministic (arg-max over allowed DCs) on a hold-out stream that is never used
+for training. Table~\ref{tab:hyper} lists the hyperparameters.
+
+\begin{table}[H]
+\centering\small
+\caption{Training hyperparameters.}
+\label{tab:hyper}
+\begin{tabular}{ll@{\qquad}ll}
+\toprule
+Optimizer & Adam, lr $5\times10^{-4}$ & Discount $\gamma$ & 0.99 \\
+Federated agents & 4 & FedAvg rounds & 10 \\
+Episodes per agent per round & 50 & Total training episodes & 2000 \\
+$\epsilon$ start / min / decay & 0.15 / 0.02 / 0.995 & Logit noise std & 0.10 \\
+Entropy coefficient & 0.01 & Gradient clip & 1.0 \\
+Critic loss weight & 0.5 & Prior weight $w$ (initial) & 2.0 (learned) \\
+SQN depth / LSTM hidden & 5 / 64 & Retries $K$ & 4 \\
+Instance overhead $o$ & 0.25 units & Training requests per agent & 600 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+%=====================================================================
+\section{Performance Evaluation}
+%=====================================================================
+
+\subsection{Experimental setup}
+\textbf{Hardware:} laptop with a 12th Gen Intel Core i5-12500H CPU and 16 GB of
+RAM, running Windows 11. No GPU was used. \textbf{Software:} Python 3.12.1,
+PyTorch 2.10 (CPU build), NetworkX 3.6.1 and Matplotlib 3.10.8. Scenarios run in
+parallel worker processes with one PyTorch thread each. Each scenario is
+repeated with \numSeeds{} seeds (7--11). For each seed we generate a new network,
+four training streams and one hold-out stream. Training one FPPVS model takes
+about \trainSeconds\,s.
+
+\begin{table}[H]
+\centering\small
+\caption{Simulation parameters. Values follow Section 5.1 of the paper unless
+marked as ours.}
+\label{tab:params}
+\begin{tabularx}{\linewidth}{l X}
+\toprule
+Parameter & Value \\
+\midrule
+Topologies & Backbone: 24 DCs, 47 links; Metro: 17 DCs, 29 links (random connected graphs) \\
+DC compute capacity & $\mathcal{U}(10, 20)$ units \\
+Link bandwidth & 100--200 units in steps of 20 \\
+Link latency & $\mathcal{U}(5, 20)$ ms \\
+SFC length & 4--10 VNFs, types IDS, DPI, LB, FW, NAT \\
+Monitor probability (IDS/DPI) & 0.45; a monitor gates a later shaper with prob.\ 0.5 \\
+VNF compute demand & $\mathcal{U}(0.5, 0.9)$ units (500--900 Mbps normalized) \\
+VNF processing latency & $\mathcal{U}(0.01, 0.2)$ ms \\
+Data rate per request & bounded power law on $[5, 30]$, exponent 1.5 \\
+Maximum latency & $\mathcal{U}(100, 150)$ ms \\
+Lifetime (TTL) & exponential, mean 1000 time units \\
+Arrivals & \ours{Poisson, rate set by offered load $\rho$} \\
+Offered load $\rho$ & \ours{0.5, 0.75, 1.0 (main); 1.25, 1.5 (stress)} \\
+Instance overhead & \ours{0.25 units per live instance} \\
+Requests per stream & \ours{600 hold-out; 600 per training agent} \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\subsection{Performance metrics}
+\begin{itemize}
+  \item \textbf{Service acceptance}: accepted hold-out requests divided by all
+  hold-out requests (higher is better).
+  \item \textbf{Compute / bandwidth per running SFC}: time-averaged compute (or
+  bandwidth) in use divided by the time-averaged number of running SFCs. This is
+  the amount of resources one service holds at any moment (lower is better).
+  \item \textbf{Compute$\cdot$time and bandwidth$\cdot$time per accepted SFC}:
+  $R_{comp}$ and $R_{bw}$ from Section 4 (lower is better).
+  \item \textbf{Instances per accepted SFC}: VNF instances started divided by
+  accepted requests; this measures how much sharing is used (lower is better).
+  \item \textbf{Latency}: mean critical-path end-to-end latency of accepted
+  requests.
+  \item \textbf{Decision time}: wall-clock time per request, including retries.
+\end{itemize}
+
+\subsection{Compared methods}
+We compare five methods. All of them run in the same simulator, on the same
+networks, training streams and hold-out requests, with the same instance model
+(M2), so none of them can overbook capacity. The three learning methods get the
+same training budget of 2000 episodes.
+\begin{itemize}
+  \item \textbf{Updated FPPVS (ours):} the method of Section~\ref{sec:approach}.
+  \item \textbf{Original FPPVS} (Zhu et al.~\cite{fppvs}), run as the paper
+  describes it: the paper's four-row state (residual capacity, VNF demand,
+  distance from the previous VNF, SQN-LSTM forecast), pruning by compute only,
+  the paper's CNN (three $3\times3$ convolution layers with 64 filters, global
+  pooling, a 256-unit layer with dropout 0.3, one output per DC), the paper's
+  step reward (Eq.~28: $+1$ valid, $+5$ reuse, $-1$ new instance, $-10$
+  rejection), adaptive $\epsilon$-greedy exploration and federated training
+  (4 agents, 10 rounds, 50 episodes). No look-ahead mask, no prior and no
+  retries.
+  \item \textbf{2022 adaptation} of Zhang et al.~\cite{zhang2022}: online SFC
+  placement with sequential VNF placement (no parallelization), reuse of an
+  existing same-type VNF, an SQN-LSTM queue of depth $T_D=20$ for demand
+  forecasting, an actor-critic placement policy (a fully connected network over
+  the same four-row state), and rollback when a request cannot be completed.
+  Its reward follows the long-term revenue-to-cost ratio (LTCR): on success the
+  agent receives $10\cdot\min(2,\ \text{revenue}/\text{cost})$, where revenue is
+  the requested compute plus bandwidth and cost is the compute and link
+  bandwidth actually used; a failure gets a fixed penalty of $-10$. It is
+  trained by a single synchronous agent. This is our adaptation from the
+  method description; the authors' code was not available.
+  \item \textbf{Greedy:} the feasible DC with the most residual compute (load
+  balancing), without sharing.
+  \item \textbf{Random:} a random feasible DC, without sharing.
+\end{itemize}
+Greedy and random use our feasibility mask, so they never pick a DC that is
+already known to be infeasible. We also compare against the numbers published in
+the FPPVS paper (Section~\ref{sec:paper}). Separately, an ablation study switches
+off one part of updated FPPVS at a time (no sharing, no fairness bonus, a single
+agent, no retries, and the placement prior alone without learning).
+
+\subsection{Results}
+
+\input{results}
+
+%=====================================================================
+\section*{Summary of Contributions}
+%=====================================================================
+
+\begin{table}[H]
+\centering\small
+\caption{What comes from the original paper and what our team added.}
+\label{tab:contrib}
+\begin{tabularx}{\linewidth}{>{\raggedright\arraybackslash}X >{\raggedright\arraybackslash}X}
+\toprule
+Original paper~\cite{fppvs} & Our team \\
+\midrule
+Problem statement, system model and weighted objective & Explicit offered-load workload with Poisson arrivals (M1); resource-time objective and metrics (M4) \\
+Algorithm 1 for s-SFC to p-SFC conversion & Python implementation and unit tests; critical-path latency evaluator \\
+Idea of VNF sharing and SQN-LSTM forecasting & Instance-overhead compute model with reference counting and TTL release, without overbooking (M2) \\
+Fairness-aware utility and JFI & JFI-change bonus in the reward \\
+CNN actor-critic with FDRL and adaptive $\epsilon$-greedy & Per-DC permutation-equivariant actor with learnable placement prior; per-agent streams and ledgers; experience-weighted FedAvg; entropy bonus \\
+Node pruning by compute & Look-ahead mask on compute, bandwidth and latency; rollback-and-retry admission \\
+Evaluation against RVNF, DRL-SFCP, PVFP, DPC on private data & Reproducible synthetic evaluation against the original FPPVS and a 2022 adaptation (Zhang et al.) on identical scenarios; greedy and random baselines, ablations, \numSeeds{} seeds, overload stress tests \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+%=====================================================================
+\section*{Conclusion}
+%=====================================================================
+
+\input{conclusion}
+
+\begin{thebibliography}{9}
+\bibitem{fppvs} Q.~Zhu, M.~Li and A.~Rezaeipanah, ``Fairness-aware and
+parallelized SFC placement with VNF sharing in MEC-enabled IoT networks,''
+\emph{Computer Networks}, vol.~290, p.~112774, 2026.
+\bibitem{fedavg} B.~McMahan, E.~Moore, D.~Ramage, S.~Hampson and
+B.~A.~y~Arcas, ``Communication-efficient learning of deep networks from
+decentralized data,'' in \emph{Proc. AISTATS}, 2017.
+\bibitem{zhang2022} Zhang \emph{et al.}, ``A dynamic planning model for deploying
+service function chain in fog-cloud computing,'' \emph{Journal of King Saud
+University -- Computer and Information Sciences}, vol.~34, pp.~7948--7960, 2022.
+\bibitem{a3c} V.~Mnih \emph{et al.}, ``Asynchronous methods for deep
+reinforcement learning,'' in \emph{Proc. ICML}, 2016.
+\bibitem{jain} R.~Jain, D.~Chiu and W.~Hawe, ``A quantitative measure of
+fairness and discrimination for resource allocation in shared computer
+systems,'' DEC Technical Report TR-301, 1984.
+\end{thebibliography}
+
+\end{document}

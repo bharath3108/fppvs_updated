@@ -1,0 +1,76 @@
+{
+  "scenario": "synthetic; not exact paper datasets",
+  "modules": {
+    "parallelization": true,
+    "sqn_lstm": true,
+    "sharing": true,
+    "fairness": true,
+    "federated": true
+  },
+  "device": "cpu",
+  "seed": 7,
+  "runs": 1,
+  "requests": 8,
+  "training": {
+    "agents": 2,
+    "rounds": 2,
+    "local_episodes": 2,
+    "episodes": null
+  },
+  "statistics": {
+    "fdrl_acceptance": {
+      "mean": 1.0,
+      "std": 0.0,
+      "ci95_half_width": 0.0
+    },
+    "greedy_acceptance": {
+      "mean": 1.0,
+      "std": 0.0,
+      "ci95_half_width": 0.0
+    },
+    "random_acceptance": {
+      "mean": 0.375,
+      "std": 0.0,
+      "ci95_half_width": 0.0
+    },
+    "mean_reward": {
+      "mean": 24.765141457312104,
+      "std": 0.0,
+      "ci95_half_width": 0.0
+    },
+    "training_acceptance": {
+      "mean": 0.125,
+      "std": 0.0,
+      "ci95_half_width": 0.0
+    },
+    "mean_training_reward": {
+      "mean": -7.977552114956947,
+      "std": 0.0,
+      "ci95_half_width": 0.0
+    },
+    "fdrl_training_episodes": {
+      "mean": 8,
+      "std": 0.0,
+      "ci95_half_width": 0.0
+    },
+    "sqn_queue_depth": {
+      "mean": 5,
+      "std": 0.0,
+      "ci95_half_width": 0.0
+    }
+  },
+  "per_run": [
+    {
+      "seed": 7,
+      "fdrl_acceptance": 1.0,
+      "greedy_acceptance": 1.0,
+      "random_acceptance": 0.375,
+      "mean_reward": 24.765141457312104,
+      "training_acceptance": 0.125,
+      "mean_training_reward": -7.977552114956947,
+      "fdrl_training_episodes": 8,
+      "sqn_queue_depth": 5
+    }
+  ],
+  "learning_plot": "output\\fppvs-evaluation-smoke.png"
+}

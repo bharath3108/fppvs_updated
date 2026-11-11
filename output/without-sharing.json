@@ -1,0 +1,62 @@
+{
+  "scenario": "synthetic; not exact paper datasets",
+  "modules": {
+    "parallelization": true,
+    "sharing": false,
+    "fairness": true
+  },
+  "seed": 7,
+  "runs": 5,
+  "requests": 100,
+  "episodes": 500,
+  "mean": {
+    "fdrl_acceptance": 0.4832,
+    "greedy_acceptance": 0.964,
+    "random_acceptance": 0.20600000000000002,
+    "mean_reward": -4.4981931214213375,
+    "shared_instances": 0
+  },
+  "per_run": [
+    {
+      "seed": 7,
+      "fdrl_acceptance": 0.664,
+      "greedy_acceptance": 0.91,
+      "random_acceptance": 0.13,
+      "mean_reward": -2.3748438292741776,
+      "shared_instances": 0
+    },
+    {
+      "seed": 8,
+      "fdrl_acceptance": 0.318,
+      "greedy_acceptance": 0.98,
+      "random_acceptance": 0.21,
+      "mean_reward": -6.425240434408188,
+      "shared_instances": 0
+    },
+    {
+      "seed": 9,
+      "fdrl_acceptance": 0.45,
+      "greedy_acceptance": 0.98,
+      "random_acceptance": 0.23,
+      "mean_reward": -4.903496777057648,
+      "shared_instances": 0
+    },
+    {
+      "seed": 10,
+      "fdrl_acceptance": 0.584,
+      "greedy_acceptance": 1.0,
+      "random_acceptance": 0.26,
+      "mean_reward": -3.3101736420989036,
+      "shared_instances": 0
+    },
+    {
+      "seed": 11,
+      "fdrl_acceptance": 0.4,
+      "greedy_acceptance": 0.95,
+      "random_acceptance": 0.2,
+      "mean_reward": -5.4772109242677685,
+      "shared_instances": 0
+    }
+  ],
+  "learning_plot": "output\\synthetic-learning.png"
+}

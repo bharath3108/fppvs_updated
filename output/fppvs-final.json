@@ -1,0 +1,90 @@
+{
+  "scenario": "synthetic; not exact paper datasets",
+  "modules": {
+    "parallelization": true,
+    "sqn_lstm": true,
+    "sharing": true,
+    "fairness": true,
+    "federated": true
+  },
+  "device": "cpu",
+  "seed": 7,
+  "runs": 5,
+  "requests": 100,
+  "training": {
+    "agents": 4,
+    "rounds": 50,
+    "local_episodes": 10,
+    "episodes": null
+  },
+  "statistics": {
+    "fdrl_acceptance": {
+      "mean": 0.14400000000000002,
+      "std": 0.13371611720357424,
+      "ci95_half_width": 0.11720734447977224
+    },
+    "greedy_acceptance": {
+      "mean": 0.964,
+      "std": 0.03507135583350035,
+      "ci95_half_width": 0.03074139879706191
+    },
+    "random_acceptance": {
+      "mean": 0.20600000000000002,
+      "std": 0.04827007354458868,
+      "ci95_half_width": 0.04231058496404889
+    },
+    "mean_reward": {
+      "mean": -4.490737680469675,
+      "std": 0.7598890735260165,
+      "ci95_half_width": 0.6660721405152954
+    },
+    "sqn_queue_depth": {
+      "mean": 5,
+      "std": 0.0,
+      "ci95_half_width": 0.0
+    }
+  },
+  "per_run": [
+    {
+      "seed": 7,
+      "fdrl_acceptance": 0.0,
+      "greedy_acceptance": 0.91,
+      "random_acceptance": 0.13,
+      "mean_reward": -5.399275404701045,
+      "sqn_queue_depth": 5
+    },
+    {
+      "seed": 8,
+      "fdrl_acceptance": 0.0,
+      "greedy_acceptance": 0.98,
+      "random_acceptance": 0.21,
+      "mean_reward": -5.227030221058293,
+      "sqn_queue_depth": 5
+    },
+    {
+      "seed": 9,
+      "fdrl_acceptance": 0.28,
+      "greedy_acceptance": 0.98,
+      "random_acceptance": 0.23,
+      "mean_reward": -4.056840927342665,
+      "sqn_queue_depth": 5
+    },
+    {
+      "seed": 10,
+      "fdrl_acceptance": 0.22,
+      "greedy_acceptance": 1.0,
+      "random_acceptance": 0.26,
+      "mean_reward": -3.7835071360384296,
+      "sqn_queue_depth": 5
+    },
+    {
+      "seed": 11,
+      "fdrl_acceptance": 0.22,
+      "greedy_acceptance": 0.95,
+      "random_acceptance": 0.2,
+      "mean_reward": -3.9870347132079416,
+      "sqn_queue_depth": 5
+    }
+  ],
+  "learning_plot": "output\\fppvs-final.png"
+}

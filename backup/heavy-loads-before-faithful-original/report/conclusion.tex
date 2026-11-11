@@ -1,0 +1,28 @@
+We implemented the FPPVS framework in Python and found that, as specified, it
+could not be reproduced and performed poorly in our hands: about 10\%
+acceptance, below random placement. The main causes were an unstated arrival
+rate that overloaded the network, feasibility checks that came too late, a
+sharing model that could overbook capacity, and an actor network that could not
+tell data centers apart. We stated the workload as an explicit offered load,
+added a look-ahead feasibility mask, an instance-overhead model for VNF sharing,
+a per-data-center actor with a learnable placement prior, rollback-and-retry
+admission and corrected federated training.
+
+With these changes FPPVS accepts \fppvsMinAcc--\fppvsMaxAcc\% of requests on
+both topologies at heavy load (90--110\% of capacity), above the 70\% target in every
+main scenario and every seed. On the same scenarios, the original FPPVS as
+specified in the paper reaches only \origMinAcc--\origMaxAcc\% and the 2022
+adaptation \zhangMinAcc--\zhangMaxAcc\%, and we could not reproduce the paper's
+published values with the original specification. Updated FPPVS also holds
+about half the link bandwidth per running service of greedy and random, 19\%
+less than the original FPPVS and about the same as the 2022 adaptation, and it
+starts far fewer VNF instances than any other method.
+The ablation study shows that VNF sharing and the problem
+modifications drive these gains, while the learned part of the policy adds
+little beyond its prior.
+
+Future work: (1) evaluate on the real USAnet and Italian operator topologies and
+traces once they are available; (2) re-implement the paper's baselines; (3) give
+the agent a multi-request horizon, for example by treating a batch of arrivals
+as one episode, so that learning can improve on the prior; and (4) add VNF
+migration so that long-lived chains can be repacked when links fill up.

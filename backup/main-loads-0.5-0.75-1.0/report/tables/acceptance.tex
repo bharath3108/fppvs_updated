@@ -1,0 +1,17 @@
+\begin{tabular}{lccccc}
+\toprule
+Scenario (topology, load) & Updated (ours) & Original FPPVS & 2022 adaptation & Greedy & Random \\
+\midrule
+Backbone 0.5 & \textbf{99.6 $\pm$ 0.4} & 58.1 $\pm$ 4.1 & 68.1 $\pm$ 5.4 & 72.1 $\pm$ 5.8 & 73.2 $\pm$ 4.5 \\
+Backbone 0.75 & \textbf{97.2 $\pm$ 2.1} & 50.1 $\pm$ 3.7 & 48.6 $\pm$ 15.3 & 62.6 $\pm$ 5.7 & 61.8 $\pm$ 3.8 \\
+Backbone 1 & \textbf{86.4 $\pm$ 3.7} & 43.6 $\pm$ 5.1 & 44.5 $\pm$ 6.5 & 53.4 $\pm$ 5.1 & 55.3 $\pm$ 3.4 \\
+Metro 0.5 & \textbf{99.0 $\pm$ 0.8} & 64.6 $\pm$ 10.2 & 74.0 $\pm$ 9.7 & 71.4 $\pm$ 3.0 & 72.1 $\pm$ 2.9 \\
+Metro 0.75 & \textbf{93.0 $\pm$ 2.5} & 58.5 $\pm$ 6.6 & 59.1 $\pm$ 5.3 & 59.5 $\pm$ 2.9 & 59.9 $\pm$ 2.3 \\
+Metro 1 & \textbf{81.3 $\pm$ 3.5} & 49.7 $\pm$ 4.5 & 49.4 $\pm$ 9.7 & 51.8 $\pm$ 3.6 & 52.6 $\pm$ 3.0 \\
+\midrule \multicolumn{6}{l}{\emph{Overload stress tests (offered demand above total capacity)}} \\
+Backbone 1.25 & \textbf{75.2 $\pm$ 2.9} & 38.7 $\pm$ 3.9 & 41.1 $\pm$ 3.0 & 49.3 $\pm$ 3.8 & 50.9 $\pm$ 2.7 \\
+Backbone 1.5 & \textbf{65.2 $\pm$ 3.3} & 35.0 $\pm$ 4.2 & 38.4 $\pm$ 4.3 & 43.4 $\pm$ 4.1 & 44.2 $\pm$ 2.1 \\
+Metro 1.25 & \textbf{69.2 $\pm$ 4.2} & 44.0 $\pm$ 2.9 & 40.5 $\pm$ 7.8 & 47.2 $\pm$ 2.1 & 46.9 $\pm$ 2.3 \\
+Metro 1.5 & \textbf{60.6 $\pm$ 1.9} & 36.7 $\pm$ 5.0 & 42.2 $\pm$ 3.9 & 42.2 $\pm$ 2.7 & 43.1 $\pm$ 1.3 \\
+\bottomrule
+\end{tabular}

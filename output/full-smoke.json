@@ -1,0 +1,30 @@
+{
+  "scenario": "synthetic; not exact paper datasets",
+  "modules": {
+    "parallelization": true,
+    "sharing": true,
+    "fairness": true
+  },
+  "seed": 7,
+  "runs": 1,
+  "requests": 6,
+  "episodes": 6,
+  "mean": {
+    "fdrl_acceptance": 0.16666666666666666,
+    "greedy_acceptance": 1.0,
+    "random_acceptance": 0.3333333333333333,
+    "mean_reward": -7.325983206431071,
+    "shared_instances": 5
+  },
+  "per_run": [
+    {
+      "seed": 7,
+      "fdrl_acceptance": 0.16666666666666666,
+      "greedy_acceptance": 1.0,
+      "random_acceptance": 0.3333333333333333,
+      "mean_reward": -7.325983206431071,
+      "shared_instances": 5
+    }
+  ],
+  "learning_plot": "output\\full-smoke.png"
+}

@@ -1,0 +1,13 @@
+[project]
+name = "fppvs"
+version = "0.1.0"
+description = "Reference implementation of FPPVS paper components"
+requires-python = ">=3.11"
+dependencies = ["matplotlib>=3.8", "networkx>=3.2", "torch>=2.0"]
+
+[project.optional-dependencies]
+dev = ["pytest>=8.0"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+

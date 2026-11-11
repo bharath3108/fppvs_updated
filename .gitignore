@@ -1,0 +1,7 @@
+# Installed dependencies (too large for GitHub; reinstall from pyproject.toml)
+.deps/
+
+# Python caches
+__pycache__/
+*.pyc
+.pytest_cache/

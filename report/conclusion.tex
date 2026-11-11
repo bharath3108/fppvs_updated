@@ -1,0 +1,30 @@
+We implemented the FPPVS framework in Python. Our first version accepted only
+about 10\% of requests, which is below random placement. The causes were an
+unstated arrival rate that overloaded the network, a bunch of bugs, a sharing
+model that could overbook capacity, and a loose reading of the paper (pruning by
+compute only, any DC as a candidate, global pooling in the CNN). When we
+implemented it closely from Section 4.3 of the paper, the original FPPVS works
+much better. On top of that, we stated the workload as an explicit offered load
+and added a look-ahead feasibility mask, an instance-overhead model for VNF
+sharing, a per-data-center actor with a learnable placement prior,
+rollback-and-retry admission and fixed federated training.
+
+With these changes, updated FPPVS accepts \fppvsMinAcc--\fppvsMaxAcc\% of
+requests on both topologies at heavy load (90--110\% of capacity), which is
+above the 70\% target in every main scenario and every seed. On the same
+scenarios, the original FPPVS comes second with \origMinAcc--\origMaxAcc\%,
+ahead of the 2022 adaptation (\zhangMinAcc--\zhangMaxAcc\%) and of greedy and
+random placement in every run. At full load, the original comes close to the
+paper's published value on Metro (69.6\% against 75.9\%), but stays below it on
+Backbone (72.9\% against 88.1\%). Coming to resources, updated FPPVS holds about
+half the link bandwidth per running service compared to greedy and random, 11\%
+less than the original FPPVS and about the same as the 2022 adaptation, and it
+starts far fewer VNF instances than any other method. The ablation study shows
+that VNF sharing and the problem modifications are what drive these gains, while
+the learned part of the policy doesn't add much beyond its prior.
+
+Future work: (1) evaluate on the real USAnet and Italian operator topologies and
+traces once they are available; (2) re-implement the paper's baselines; (3) give
+the agent a multi-request horizon, for example by treating a batch of arrivals
+as one episode, so that learning can actually improve on the prior; and (4) add
+VNF migration so that long-lived chains can be repacked when links fill up.

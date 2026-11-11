@@ -1,0 +1,30 @@
+{
+  "scenario": "synthetic; not exact paper datasets",
+  "seed": 7,
+  "runs": 2,
+  "requests": 6,
+  "episodes": 6,
+  "mean": {
+    "fdrl_acceptance": 0.25,
+    "greedy_acceptance": 0.9166666666666667,
+    "random_acceptance": 0.3333333333333333,
+    "mean_reward": -7.237078011035919
+  },
+  "per_run": [
+    {
+      "seed": 7,
+      "fdrl_acceptance": 0.16666666666666666,
+      "greedy_acceptance": 1.0,
+      "random_acceptance": 0.3333333333333333,
+      "mean_reward": -8.159316519896189
+    },
+    {
+      "seed": 8,
+      "fdrl_acceptance": 0.3333333333333333,
+      "greedy_acceptance": 0.8333333333333334,
+      "random_acceptance": 0.3333333333333333,
+      "mean_reward": -6.314839502175649
+    }
+  ],
+  "learning_plot": "output\\repeated-smoke.png"
+}
