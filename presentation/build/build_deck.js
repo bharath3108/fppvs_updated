@@ -1,5 +1,5 @@
 // Builds presentation/FPPVS-final-presentation.pptx from the experiment results.
-// Run from presentation/build:  node build_deck.js
+// Run from presentation/build:  npm install, then node build_deck.js
 const path = require("path");
 const fs = require("fs");
 const pptxgen = require("pptxgenjs");
@@ -7,7 +7,6 @@ const pptxgen = require("pptxgenjs");
 const ROOT = path.resolve(__dirname, "..", "..");
 const FIG = path.join(ROOT, "report", "figures");
 const OUT = process.env.DECK_OUT || path.join(ROOT, "presentation", "FPPVS-final-presentation.pptx");
-const SKILL = process.env.PPTX_SKILL_DIR;
 const RESULTS_FILE = process.env.RESULTS_JSON || path.join(ROOT, "output", "scenarios", "scenario-results.json");
 const results = JSON.parse(fs.readFileSync(RESULTS_FILE, "utf8"));
 const S = results.summary;
@@ -395,7 +394,8 @@ s.addNotes("Closing (23CSB0B56).\nLikely questions and short answers:\n- Why bet
 
 (async () => {
   await pres.writeFile({ fileName: OUT });
-  const { applyTheme } = require(path.join(SKILL, "scripts", "apply_theme.js"));
+  // Writes the theme colours and fonts into the deck (pptxgenjs cannot do this itself).
+  const { applyTheme } = require("./apply_theme.js");
   await applyTheme(OUT, THEME);
   console.log("wrote", OUT);
 })();
